@@ -74,9 +74,6 @@ impl AtomSet {
             }
         }
     }
-    fn len(&self) -> usize {
-        self.sorted_vec.len()
-    }
     fn contains(&self, atom: Atom) -> bool {
         self.sorted_vec.binary_search(&atom).is_ok()
     }
@@ -85,20 +82,6 @@ impl AtomSet {
             .iter()
             .copied()
             .filter(|&atom| !other.contains(atom))
-    }
-    fn in_not_in(&self, other: &Self) -> Option<Atom> {
-        for (&x, &y) in self.sorted_vec.iter().zip(other.sorted_vec.iter()) {
-            if x < y {
-                return Some(x);
-            }
-        }
-        None
-    }
-    fn is_subset_of(&self, other: &Self) -> bool {
-        other.in_not_in(self).is_none()
-    }
-    fn is_superset_of(&self, other: &Self) -> bool {
-        self.in_not_in(other).is_none()
     }
 }
 
@@ -136,10 +119,10 @@ impl Kb {
     }
     fn saturate(&mut self, rules: &[Rule]) {
         'c: loop {
-            println!("pos:{:?}", &self.pos);
+            // println!("pos:{:?}", &self.pos);
             for rule in rules {
                 if !self.contains(Literal::pos(rule.head)) && rule.body_sat(self) {
-                    println!("applicable {:?}", rule);
+                    // println!("applicable {:?}", rule);
                     self.pos.insert(rule.head);
                     continue 'c;
                 }
@@ -152,31 +135,17 @@ impl Kb {
 fn main() {
     let rules = vec![
         Rule {
-            head: Atom('a'),
-            body: vec![Literal::pos(Atom('c')), Literal::neg(Atom('b'))],
-        }, // ok
-        Rule {
-            head: Atom('b'),
-            body: vec![Literal::neg(Atom('a'))],
-        }, // ok
-        Rule {
-            head: Atom('c'),
-            body: vec![],
-        }, // ok
-    ];
-    let rules = vec![
-        Rule {
             head: Atom('p'),
+            body: vec![Literal::neg(Atom('q'))],
+        },
+        Rule {
+            head: Atom('q'),
             body: vec![Literal::neg(Atom('p'))],
-        }, // whee
+        },
         Rule {
-            head: Atom('s'),
-            body: vec![Literal::pos(Atom('p'))],
-        }, // whee
-        Rule {
-            head: Atom('s'),
+            head: Atom('q'),
             body: vec![],
-        }, // whee
+        },
     ];
 
     let mut kb = Kb {
@@ -184,15 +153,19 @@ fn main() {
         prev_pos: None,
         prev_prev_pos: None,
     };
+    let start = std::time::Instant::now();
+    let mut iterations_taken = 0;
     for i in 0.. {
-        println!("ADVANCED {:#?}", &kb);
+        // println!("ADVANCED {:#?}", &kb);
         kb.saturate(&rules);
-        println!("SATURATED {:#?}", &kb);
+        // println!("SATURATED {:#?}", &kb);
         if i % 2 == 0 && Some(&kb.pos) == kb.prev_prev_pos.as_ref() {
-            println!("took {:?} iterations", i);
+            iterations_taken = i;
             break;
         }
         kb.advance();
     }
+    println!("Time taken, start to finish: {:?}", start.elapsed());
+    println!("iterations_taken: {:?}", iterations_taken);
     println!("{:#?}", Valuation(&kb));
 }
